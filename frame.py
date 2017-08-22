@@ -3,7 +3,7 @@ import time
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class Framer:
@@ -35,11 +35,17 @@ class Framer:
         """
         self._port.write([self.START_OF_FRAME])
 
-        sum1, sum2 = self._fletcher16_checksum(message)
-        message.append(sum1)
-        message.append(sum2)
+        length = len(message)
+        length_high_byte = (length & 0xff00) >> 8
+        length_low_byte = length & 0x00ff
 
-        for b in message:
+        message_with_length = [length_low_byte, length_high_byte] + message
+
+        sum1, sum2 = self._fletcher16_checksum(message_with_length)
+        message_with_length.append(sum1)
+        message_with_length.append(sum2)
+
+        for b in message_with_length:
             if b in [self.START_OF_FRAME, self.END_OF_FRAME, self.ESC]:
                 self._port.write([self.ESC])
                 self._port.write([b ^ self.ESC_XOR])
@@ -169,7 +175,7 @@ if __name__ == '__main__':
     framer = Framer(port)
 
     while True:
-        framer.tx([0x00, 0x00])
+        framer.tx([0x00])
         time.sleep(2)
         logger.debug('transmitted')
 
