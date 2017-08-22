@@ -90,13 +90,14 @@ class Framer:
             expected_checksum = (message[-1] << 8) | message[-2]
             logger.debug('checksum: {}'.format(expected_checksum))
 
-            message = message[:-2]
+            message = message[:-2]  # checksum bytes
             logger.debug('message: {}'.format(message))
 
             sum1, sum2 = self._fletcher16_checksum(message)
             calculated_checksum = (sum2 << 8) | sum1
 
             if expected_checksum == calculated_checksum:
+                message = message[2:]  # remove length
                 logger.debug('valid message received: {}'.format(message))
                 self._messages.append(message)
             else:
