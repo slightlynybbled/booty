@@ -3,17 +3,17 @@ import time
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger.setLevel(level=logging.INFO)
 
 
 class Framer:
     """
     Frames and De-frames the data
     """
-    START_OF_FRAME = 0xf7
-    END_OF_FRAME = 0x7f
-    ESC = 0xf6
-    ESC_XOR = 0x20
+    _START_OF_FRAME = 0xf7
+    _END_OF_FRAME = 0x7f
+    _ESC = 0xf6
+    _ESC_XOR = 0x20
 
     def __init__(self, port, timeout=0.1, threaded=True):
         self._port = port
@@ -33,7 +33,9 @@ class Framer:
         :param message: a list of bytes to send
         :return: None
         """
-        self._port.write([self.START_OF_FRAME])
+        self._port.write([self._START_OF_FRAME])
+
+        message = message if isinstance(message, list) else [message]
 
         length = len(message)
         length_high_byte = (length & 0xff00) >> 8
@@ -46,13 +48,13 @@ class Framer:
         message_with_length.append(sum2)
 
         for b in message_with_length:
-            if b in [self.START_OF_FRAME, self.END_OF_FRAME, self.ESC]:
-                self._port.write([self.ESC])
-                self._port.write([b ^ self.ESC_XOR])
+            if b in [self._START_OF_FRAME, self._END_OF_FRAME, self._ESC]:
+                self._port.write([self._ESC])
+                self._port.write([b ^ self._ESC_XOR])
             else:
                 self._port.write([b])
 
-        self._port.write([self.END_OF_FRAME])
+        self._port.write([self._END_OF_FRAME])
 
     def rx(self):
         """
@@ -70,15 +72,15 @@ class Framer:
         data gets placed into self._messages
         :return: None
         """
-        if self.START_OF_FRAME in self._raw and self.END_OF_FRAME in self._raw:
+        if self._START_OF_FRAME in self._raw and self._END_OF_FRAME in self._raw:
 
-            while self._raw[0] != self.START_OF_FRAME and len(self._raw) > 0:
+            while self._raw[0] != self._START_OF_FRAME and len(self._raw) > 0:
                 self._raw.pop(0)
 
-            if self._raw[0] == self.START_OF_FRAME:
+            if self._raw[0] == self._START_OF_FRAME:
                 self._raw.pop(0)
 
-            eof_index = self._raw.index(self.END_OF_FRAME)
+            eof_index = self._raw.index(self._END_OF_FRAME)
             raw_message = self._raw[:eof_index]
             self._raw = self._raw[eof_index:]
 
@@ -106,7 +108,7 @@ class Framer:
 
         # remove any extra bytes at the beginning
         try:
-            while self._raw[0] != self.START_OF_FRAME and len(self._raw) > 0:
+            while self._raw[0] != self._START_OF_FRAME and len(self._raw) > 0:
                 self._raw.pop(0)
         except IndexError:
             pass
@@ -140,10 +142,10 @@ class Framer:
         escape_next = False
         for c in raw_message:
             if escape_next:
-                message.append(c ^ self.ESC_XOR)
+                message.append(c ^ self._ESC_XOR)
                 escape_next = False
             else:
-                if c == self.ESC:
+                if c == self._ESC:
                     escape_next = True
                 else:
                     message.append(c)
