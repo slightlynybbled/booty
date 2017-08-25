@@ -33,8 +33,6 @@ class Framer:
         :param message: a list of bytes to send
         :return: None
         """
-        self._port.write([self._START_OF_FRAME])
-
         message = message if isinstance(message, list) else [message]
 
         length = len(message)
@@ -47,14 +45,18 @@ class Framer:
         message_with_length.append(sum1)
         message_with_length.append(sum2)
 
+        message = [self._START_OF_FRAME]
+
         for b in message_with_length:
             if b in [self._START_OF_FRAME, self._END_OF_FRAME, self._ESC]:
-                self._port.write([self._ESC])
-                self._port.write([b ^ self._ESC_XOR])
+                message.append(self._ESC)
+                message.append(b ^ self._ESC_XOR)
             else:
-                self._port.write([b])
+                message.append(b)
 
-        self._port.write([self._END_OF_FRAME])
+        message.append(self._END_OF_FRAME)
+
+        self._port.write(message)
 
     def rx(self):
         """
