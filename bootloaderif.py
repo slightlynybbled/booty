@@ -26,7 +26,7 @@ WRITE_ROW = 0x30
 WRITE_PAGE = 0x31
 
 
-class Controller:
+class BootLoaderIf:
     def __init__(self, port, timeout=0.1, threaded=True):
         self._framer = Framer(port=port, threaded=False)
         self._timeout = timeout
@@ -245,7 +245,7 @@ class Controller:
 
 if __name__ == '__main__':
     port = serial.Serial('COM20', baudrate=115200)
-    controller = Controller(port=port)
+    controller = BootLoaderIf(port=port)
 
     controller.query_device()
     time.sleep(0.1)
