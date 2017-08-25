@@ -61,10 +61,22 @@ class Framer:
         Receive a series of bytes that have been verified
         :return: a series of bytes as a tuple or None if empty
         """
+        if not self._threaded:
+            self.run()
+
         try:
             return tuple(self._messages.pop(0))
         except IndexError:
             return None
+
+    def is_empty(self):
+        if not self._threaded:
+            self.run()
+
+        if len(self._messages) == 0:
+            return True
+        else:
+            return False
 
     def _parse_raw_data(self):
         """
