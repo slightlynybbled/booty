@@ -175,8 +175,8 @@ class Framer:
         while run_once or self._threaded:
             waiting = self._port.in_waiting
             if waiting > 0:
-                for c in self._port.read(waiting):
-                    self._raw.append(int(c))
+                temp = [int(c) for c in self._port.read(waiting)]
+                self._raw += temp
 
             self._parse_raw_data()
             run_once = False

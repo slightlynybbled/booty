@@ -14,11 +14,13 @@ READ_ROW_LEN = 0x02
 READ_PAGE_LEN = 0x03
 READ_PROG_LEN = 0x04
 READ_MAX_PROG_SIZE = 0x05
+READ_APP_START_ADDRESS = 0x07
 
 ERASE_PAGE = 0x10
 ERASE_ALL = 0x11
 
 READ_ADDR = 0x20
+READ_PAGE = 0x21
 
 WRITE_ROW = 0x30
 WRITE_PAGE = 0x31
@@ -36,6 +38,7 @@ class Controller:
         self.page_length = None
         self.prog_length = None
         self.max_prog_size = None
+        self.app_start_addr = None
 
         self.local_memory_map = []
 
@@ -85,6 +88,10 @@ class Controller:
             self.max_prog_size = msg[1] + (msg[2] << 8)
             logger.debug('max programming size set: {}'.format(self.max_prog_size))
 
+        elif command == READ_APP_START_ADDRESS:
+            self.app_start_addr = msg[1] + (msg[2] << 8)
+            logger.debug('application start address set: {}'.format(self.app_start_addr))
+
         elif command == READ_ADDR:
             mem = msg[1:]
             width_in_bytes = 4
@@ -113,7 +120,7 @@ class Controller:
             logger.warning('command not found: {}'.format(command))
 
     def query_device(self):
-        sleep_between_queries = 0.005
+        sleep_between_queries = 0.1
 
         self.query_platform()
         time.sleep(sleep_between_queries)
@@ -151,6 +158,9 @@ class Controller:
     def query_max_prog_size(self):
         self._framer.tx(READ_MAX_PROG_SIZE)
 
+    def query_app_start_address(self):
+        self._framer.tx(READ_APP_START_ADDRESS)
+
     def erase_page(self, page_number):
         self._framer.tx([ERASE_PAGE, page_number & 0x00ff, (page_number & 0xff00) >> 8])
         logger.debug('erasing page {}'.format(page_number))
@@ -170,6 +180,10 @@ class Controller:
         time.sleep(0.003)
 
     def write_row(self, address, data):
+        if not self.row_length:
+            logger.error('row length has not been set, aborting write')
+            return
+
         if len(data) != self.row_length:
             raise ValueError('data width does not match row length')
 
@@ -188,12 +202,17 @@ class Controller:
             to_tx.append((d & 0xff000000) >> 24)
 
         self._framer.tx(to_tx)
+        time.sleep(0.010)
 
     def write_page(self, address, data):
-        map = [0xffffff] * self.max_prog_size
+        if not self.max_prog_size:
+            logger.error('program size has not been set, aborting write')
+            return
+
+        prog_map = [0xffffff] * self.max_prog_size
 
         for i, d in enumerate(data):
-            map[i] = d
+            prog_map[i] = d
 
         to_tx = [
             WRITE_PAGE,
@@ -203,7 +222,7 @@ class Controller:
             (address & 0xff000000) >> 24
         ]
 
-        for d in map:
+        for d in prog_map:
             to_tx.append(d & 0x000000ff)
             to_tx.append((d & 0x0000ff00) >> 8)
             to_tx.append((d & 0x00ff0000) >> 16)
