@@ -6,7 +6,7 @@ import serial
 from framer import Framer
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01
@@ -54,18 +54,31 @@ class BootLoaderIf:
 
         self.query_device()
 
+    @property
+    def busy(self):
+        if len(self.transmit_queue) > 0:
+            return True
+        else:
+            return False
+
     def end_thread(self):
         self.end = True
         logger.info('ending bootloader interface thread...')
 
     def add_to_queue(self, action, time_to_wait):
+        logger.debug('adding to tx queue: {}'.format(action))
         self.transmit_queue.append(
             (action, time_to_wait)
         )
 
+        logger.debug('current transmit queue:')
+        for m in self.transmit_queue:
+            logger.debug('\t{}'.format(m))
+
     def service_tx_queue(self):
         if len(self.transmit_queue) > 0:
             action, time_to_wait = self.transmit_queue.pop(0)
+            logger.debug('transmitting ({}): {}'.format(time_to_wait, action))
             self._framer.tx(action)
 
             time.sleep(time_to_wait)
@@ -77,6 +90,17 @@ class BootLoaderIf:
 
         for message in messages:
             self._parse_message(message)
+
+        if not self.device_identified:
+            if self.platform is not None \
+                    and self.version is not None \
+                    and self.row_length is not None \
+                    and self.page_length is not None \
+                    and self.prog_length is not None \
+                    and self.max_prog_size is not None \
+                    and self.app_start_addr is not None:
+                self.device_identified = True
+                logger.debug('device identification complete')
 
     def _parse_message(self, msg):
         command = msg[0]
@@ -144,38 +168,14 @@ class BootLoaderIf:
             logger.warning('command not found: {}'.format(command))
 
     def query_device(self):
-        sleep_between_queries = self._timeout
-
         self.query_platform()
-        time.sleep(sleep_between_queries)
 
         self.query_version()
-        time.sleep(sleep_between_queries)
-
         self.query_row_length()
-        time.sleep(sleep_between_queries)
-
         self.query_page_length()
-        time.sleep(sleep_between_queries)
-
         self.query_prog_length()
-        time.sleep(sleep_between_queries)  # extra time to allow memory to catch up
-
         self.query_max_prog_size()
-        time.sleep(sleep_between_queries)
-
         self.query_app_start_address()
-        time.sleep(sleep_between_queries)
-
-        if self.platform is not None \
-                and self.version is not None \
-                and self.row_length is not None \
-                and self.page_length is not None \
-                and self.prog_length is not None \
-                and self.max_prog_size is not None \
-                and self.app_start_addr is not None:
-            self.device_identified = True
-            logger.debug('device query complete')
 
     def query_platform(self):
         self.add_to_queue(READ_PLATFORM, self._timeout)
@@ -200,8 +200,7 @@ class BootLoaderIf:
 
     def erase_page(self, address_start):
         self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.025)
-        logger.debug('erasing page {}'.format(address_start))
-        time.sleep(0.025)  # give uC time to erase the page
+        logger.debug('erasing page addresses {} to {}'.format(address_start, address_start + self.page_length * 2 - 1))
 
     def read_row(self, address):
         address &= 0xfffffffe   # must be an even address
@@ -264,6 +263,7 @@ class BootLoaderIf:
             to_tx.append((d & 0x00ff0000) >> 16)
             to_tx.append((d & 0xff000000) >> 24)
 
+        logger.debug('writing maximum length ({}) to program memory'.format(self.max_prog_size))
         self.add_to_queue(to_tx, len(data)/128 * 0.015)
 
     def run(self):

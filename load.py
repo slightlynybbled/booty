@@ -50,6 +50,9 @@ def load(hex_file_path):
 
     # erase application start address to uC end address
 
+    # wait for all tranmissions are complete
+    while len(bl.transmit_queue) > 0:
+        pass
 
     bl.end_thread()
     time.sleep(1.0)
