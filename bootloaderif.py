@@ -32,6 +32,8 @@ class BootLoaderIf:
         self._timeout = timeout
         self._threaded = threaded
 
+        self.transmit_queue = []
+
         self.platform = None
         self.version = None
         self.row_length = None
@@ -55,6 +57,18 @@ class BootLoaderIf:
     def end_thread(self):
         self.end = True
         logger.info('ending bootloader interface thread...')
+
+    def add_to_queue(self, action, time_to_wait):
+        self.transmit_queue.append(
+            (action, time_to_wait)
+        )
+
+    def service_tx_queue(self):
+        if len(self.transmit_queue) > 0:
+            action, time_to_wait = self.transmit_queue.pop(0)
+            self._framer.tx(action)
+
+            time.sleep(time_to_wait)
 
     def parse_messages(self):
         messages = []
@@ -164,43 +178,43 @@ class BootLoaderIf:
             logger.debug('device query complete')
 
     def query_platform(self):
-        self._framer.tx(READ_PLATFORM)
+        self.add_to_queue(READ_PLATFORM, self._timeout)
 
     def query_version(self):
-        self._framer.tx(READ_VERSION)
+        self.add_to_queue(READ_VERSION, self._timeout)
 
     def query_row_length(self):
-        self._framer.tx(READ_ROW_LEN)
+        self.add_to_queue(READ_ROW_LEN, self._timeout)
 
     def query_page_length(self):
-        self._framer.tx(READ_PAGE_LEN)
+        self.add_to_queue(READ_PAGE_LEN, self._timeout)
 
     def query_prog_length(self):
-        self._framer.tx(READ_PROG_LEN)
+        self.add_to_queue(READ_PROG_LEN, self._timeout)
 
     def query_max_prog_size(self):
-        self._framer.tx(READ_MAX_PROG_SIZE)
+        self.add_to_queue(READ_MAX_PROG_SIZE, self._timeout)
 
     def query_app_start_address(self):
-        self._framer.tx(READ_APP_START_ADDRESS)
+        self.add_to_queue(READ_APP_START_ADDRESS, self._timeout)
 
     def erase_page(self, address_start):
-        self._framer.tx([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8])
+        self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.025)
         logger.debug('erasing page {}'.format(address_start))
         time.sleep(0.025)  # give uC time to erase the page
 
     def read_row(self, address):
         address &= 0xfffffffe   # must be an even address
-        self._framer.tx(
-            [
+
+        self.add_to_queue([
                 READ_ADDR,
                 (address & 0x000000ff),
                 (address & 0x0000ff00) >> 8,
                 (address & 0x00ff0000) >> 16,
                 (address & 0xff000000) >> 24,
-            ]
+            ],
+            0.003
         )
-        time.sleep(0.003)
 
     def write_row(self, address, data):
         if not self.row_length:
@@ -224,8 +238,7 @@ class BootLoaderIf:
             to_tx.append((d & 0x00ff0000) >> 16)
             to_tx.append((d & 0xff000000) >> 24)
 
-        self._framer.tx(to_tx)
-        time.sleep(0.010)       # give uC time to write
+        self.add_to_queue(to_tx, 0.010)
 
     def write_max(self, address, data):
         if not self.max_prog_size:
@@ -251,8 +264,7 @@ class BootLoaderIf:
             to_tx.append((d & 0x00ff0000) >> 16)
             to_tx.append((d & 0xff000000) >> 24)
 
-        self._framer.tx(to_tx)
-        time.sleep(len(data)/128 * 0.015)   # give uC time to write
+        self.add_to_queue(to_tx, len(data)/128 * 0.015)
 
     def run(self):
         """
@@ -261,7 +273,9 @@ class BootLoaderIf:
         """
         run_once = True
         while (run_once or self._threaded) and self.end is False:
+            self.service_tx_queue()
             self.parse_messages()
+
             run_once = False
 
             if self._threaded:
