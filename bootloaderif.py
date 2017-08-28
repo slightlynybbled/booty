@@ -23,7 +23,7 @@ READ_ADDR = 0x20
 READ_PAGE = 0x21
 
 WRITE_ROW = 0x30
-WRITE_PAGE = 0x31
+WRITE_MAX = 0x31
 
 
 class BootLoaderIf:
@@ -184,10 +184,10 @@ class BootLoaderIf:
     def query_app_start_address(self):
         self._framer.tx(READ_APP_START_ADDRESS)
 
-    def erase_page(self, page_number):
-        self._framer.tx([ERASE_PAGE, page_number & 0x00ff, (page_number & 0xff00) >> 8])
-        logger.debug('erasing page {}'.format(page_number))
-        time.sleep(0.005)  # page erases require 4ms to complete
+    def erase_page(self, address_start):
+        self._framer.tx([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8])
+        logger.debug('erasing page {}'.format(address_start))
+        time.sleep(0.025)  # give uC time to erase the page
 
     def read_row(self, address):
         address &= 0xfffffffe   # must be an even address
@@ -225,9 +225,9 @@ class BootLoaderIf:
             to_tx.append((d & 0xff000000) >> 24)
 
         self._framer.tx(to_tx)
-        time.sleep(0.010)
+        time.sleep(0.010)       # give uC time to write
 
-    def write_page(self, address, data):
+    def write_max(self, address, data):
         if not self.max_prog_size:
             logger.error('program size has not been set, aborting write')
             return
@@ -238,7 +238,7 @@ class BootLoaderIf:
             prog_map[i] = d
 
         to_tx = [
-            WRITE_PAGE,
+            WRITE_MAX,
             (address & 0x000000ff),
             (address & 0x0000ff00) >> 8,
             (address & 0x00ff0000) >> 16,
@@ -252,6 +252,7 @@ class BootLoaderIf:
             to_tx.append((d & 0xff000000) >> 24)
 
         self._framer.tx(to_tx)
+        time.sleep(len(data)/128 * 0.015)   # give uC time to write
 
     def run(self):
         """
@@ -295,4 +296,4 @@ if __name__ == '__main__':
     # controller.write_row(0x2000, [0x00123456, 0x00987654])
 
     # write page of data
-    #controller.write_page(0x2000, [0x00123456, 0x00987654, 0x00321098])
+    #controller.write_max(0x2000, [0x00123456, 0x00987654, 0x00321098])
