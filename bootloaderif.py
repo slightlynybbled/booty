@@ -40,11 +40,21 @@ class BootLoaderIf:
         self.max_prog_size = None
         self.app_start_addr = None
 
+        self.device_identified = False
+
         self.local_memory_map = []
+
+        self.end = False
 
         if self._threaded:
             self._runner = threading.Thread(target=self.run, daemon=True)
             self._runner.start()
+
+        self.query_device()
+
+    def end_thread(self):
+        self.end = True
+        logger.info('ending bootloader interface thread...')
 
     def parse_messages(self):
         messages = []
@@ -120,7 +130,7 @@ class BootLoaderIf:
             logger.warning('command not found: {}'.format(command))
 
     def query_device(self):
-        sleep_between_queries = 0.1
+        sleep_between_queries = self._timeout
 
         self.query_platform()
         time.sleep(sleep_between_queries)
@@ -138,7 +148,20 @@ class BootLoaderIf:
         time.sleep(sleep_between_queries)  # extra time to allow memory to catch up
 
         self.query_max_prog_size()
-        time.sleep(0.1)
+        time.sleep(sleep_between_queries)
+
+        self.query_app_start_address()
+        time.sleep(sleep_between_queries)
+
+        if self.platform is not None \
+                and self.version is not None \
+                and self.row_length is not None \
+                and self.page_length is not None \
+                and self.prog_length is not None \
+                and self.max_prog_size is not None \
+                and self.app_start_addr is not None:
+            self.device_identified = True
+            logger.debug('device query complete')
 
     def query_platform(self):
         self._framer.tx(READ_PLATFORM)
@@ -236,12 +259,16 @@ class BootLoaderIf:
         :return:
         """
         run_once = True
-        while run_once or self._threaded:
+        while (run_once or self._threaded) and self.end is False:
             self.parse_messages()
             run_once = False
 
             if self._threaded:
                 time.sleep(self._timeout)
+
+        if self._threaded:
+            logger.info('bootloader thread complete')
+
 
 if __name__ == '__main__':
     port = serial.Serial('COM20', baudrate=115200)
@@ -268,4 +295,4 @@ if __name__ == '__main__':
     # controller.write_row(0x2000, [0x00123456, 0x00987654])
 
     # write page of data
-    controller.write_page(0x2000, [0x00123456, 0x00987654, 0x00321098])
+    #controller.write_page(0x2000, [0x00123456, 0x00987654, 0x00321098])
