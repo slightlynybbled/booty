@@ -6,7 +6,7 @@ import serial
 from framer import Framer
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01
@@ -27,7 +27,7 @@ WRITE_MAX = 0x31
 
 
 class BootLoaderIf:
-    def __init__(self, port, timeout=0.1, threaded=True):
+    def __init__(self, port, timeout=0.01, threaded=True):
         self._framer = Framer(port=port, threaded=False)
         self._timeout = timeout
         self._threaded = threaded
@@ -66,19 +66,15 @@ class BootLoaderIf:
         logger.info('ending bootloader interface thread...')
 
     def add_to_queue(self, action, time_to_wait):
-        logger.debug('adding to tx queue: {}'.format(action))
+        logger.debug('current queue length: {} adding to tx queue'.format(len(self.transmit_queue)))
         self.transmit_queue.append(
             (action, time_to_wait)
         )
 
-        logger.debug('current transmit queue:')
-        for m in self.transmit_queue:
-            logger.debug('\t{}'.format(m))
-
     def service_tx_queue(self):
         if len(self.transmit_queue) > 0:
             action, time_to_wait = self.transmit_queue.pop(0)
-            logger.debug('transmitting ({}): {}'.format(time_to_wait, action))
+            logger.debug('transmitting... {} actions remaining'.format(len(self.transmit_queue)))
             self._framer.tx(action)
 
             time.sleep(time_to_wait)
@@ -100,7 +96,7 @@ class BootLoaderIf:
                     and self.max_prog_size is not None \
                     and self.app_start_addr is not None:
                 self.device_identified = True
-                logger.debug('device identification complete')
+                logger.info('device identification complete')
 
     def _parse_message(self, msg):
         command = msg[0]
@@ -109,36 +105,36 @@ class BootLoaderIf:
             for c in msg[1:]:
                 platform += chr(c)
             self.platform = platform
-            logger.debug('platform set: {}'.format(self.platform))
+            logger.info('platform set: {}'.format(self.platform))
 
         elif command == READ_VERSION:
             version = ''
             for c in msg[1:]:
                 version += chr(c)
             self.version = version
-            logger.debug('version set: {}'.format(self.version))
+            logger.info('version set: {}'.format(self.version))
 
         elif command == READ_ROW_LEN:
             self.row_length = msg[1] + (msg[2] << 8)
-            logger.debug('row length set: {}'.format(self.row_length))
+            logger.info('row length set: {}'.format(self.row_length))
 
         elif command == READ_PAGE_LEN:
             self.page_length = msg[1] + (msg[2] << 8)
-            logger.debug('page length set: {}'.format(self.page_length))
+            logger.info('page length set: {}'.format(self.page_length))
 
         elif command == READ_PROG_LEN:
             self.prog_length = msg[1] + (msg[2] << 8)
-            logger.debug('program length set: {}'.format(self.prog_length))
+            logger.info('program length set: {}'.format(self.prog_length))
 
             self.local_memory_map = [0xffffff] * (0x200 * self.prog_length >> 1)
 
         elif command == READ_MAX_PROG_SIZE:
             self.max_prog_size = msg[1] + (msg[2] << 8)
-            logger.debug('max programming size set: {}'.format(self.max_prog_size))
+            logger.info('max programming size set: {}'.format(self.max_prog_size))
 
         elif command == READ_APP_START_ADDRESS:
             self.app_start_addr = msg[1] + (msg[2] << 8)
-            logger.debug('application start address set: {}'.format(self.app_start_addr))
+            logger.info('application start address set: {}'.format(self.app_start_addr))
 
         elif command == READ_ADDR:
             mem = msg[1:]
@@ -178,29 +174,31 @@ class BootLoaderIf:
         self.query_app_start_address()
 
     def query_platform(self):
-        self.add_to_queue(READ_PLATFORM, self._timeout)
+        self.add_to_queue(READ_PLATFORM, 0.01)
 
     def query_version(self):
-        self.add_to_queue(READ_VERSION, self._timeout)
+        self.add_to_queue(READ_VERSION, 0.01)
 
     def query_row_length(self):
-        self.add_to_queue(READ_ROW_LEN, self._timeout)
+        self.add_to_queue(READ_ROW_LEN, 0.01)
 
     def query_page_length(self):
-        self.add_to_queue(READ_PAGE_LEN, self._timeout)
+        self.add_to_queue(READ_PAGE_LEN, 0.01)
 
     def query_prog_length(self):
-        self.add_to_queue(READ_PROG_LEN, self._timeout)
+        self.add_to_queue(READ_PROG_LEN, 0.01)
 
     def query_max_prog_size(self):
-        self.add_to_queue(READ_MAX_PROG_SIZE, self._timeout)
+        self.add_to_queue(READ_MAX_PROG_SIZE, 0.01)
 
     def query_app_start_address(self):
-        self.add_to_queue(READ_APP_START_ADDRESS, self._timeout)
+        self.add_to_queue(READ_APP_START_ADDRESS, 0.01)
 
     def erase_page(self, address_start):
         self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.025)
-        logger.debug('erasing page addresses {} to {}'.format(address_start, address_start + self.page_length * 2 - 1))
+        logger.debug('erasing page addresses {} to {}'.format(
+            hex(address_start), hex(address_start + self.page_length * 2 - 1))
+        )
 
     def read_row(self, address):
         address &= 0xfffffffe   # must be an even address

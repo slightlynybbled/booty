@@ -49,9 +49,22 @@ def load(hex_file_path):
         bl.write_max(address + len(row_data) * i, row_data)
 
     # erase application start address to uC end address
+    address = bl.app_start_addr
+    while address < last_prog_page:
+        bl.erase_page(address)
+
+        for i in range(prog_ops_per_page):
+            row_data = [hp.get_opcode(addr + address) for addr in range(bl.max_prog_size * 2) if addr % 2 == 0]
+
+            #for j, d in enumerate(row_data):
+            #    logger.debug('{:06X} {:06X} {:06X}'.format(address + j*2, j * 2, d))
+
+            bl.write_max(address, row_data)
+
+            address += bl.max_prog_size << 1
 
     # wait for all tranmissions are complete
-    while len(bl.transmit_queue) > 0:
+    while bl.busy:
         pass
 
     bl.end_thread()

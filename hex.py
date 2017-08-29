@@ -20,5 +20,5 @@ class HexParser:
 
 if __name__ == '__main__':
     hp = HexParser('C:/_code/libs/blink.X/dist/default/production/blink.X.production.hex')
-    opcode = hp.get_opcode(4)
+    opcode = hp.get_opcode(0x1080)
     print('{:06X}'.format(opcode))
