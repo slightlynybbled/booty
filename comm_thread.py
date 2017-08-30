@@ -28,7 +28,8 @@ WRITE_MAX = 0x31
 START_APP = 0x40
 
 
-class BootLoaderIf:
+class BootLoaderThread:
+
     def __init__(self, port, timeout=0.01, threaded=True):
         self._framer = Framer(port=port, threaded=False)
         self._timeout = timeout
@@ -208,7 +209,17 @@ class BootLoaderIf:
         self.add_to_queue(READ_APP_START_ADDRESS, 0.01)
 
     def erase_page(self, address_start):
-        self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.1)
+        self.add_to_queue(
+            [
+                ERASE_PAGE,
+                (address_start & 0x000000ff),
+                (address_start & 0x0000ff00) >> 8,
+                (address_start & 0x00ff0000) >> 16,
+                (address_start & 0xff000000) >> 24,
+            ],
+            0.1
+        )
+
         logger.debug('erasing page addresses {} to {}'.format(
             hex(address_start), hex(address_start + self.page_length * 2 - 1))
         )
@@ -321,14 +332,18 @@ class BootLoaderIf:
 
 if __name__ == '__main__':
     port = serial.Serial('COM20', baudrate=115200)
-    controller = BootLoaderIf(port=port)
+    controller = BootLoaderThread(port=port)
 
     controller.query_device()
     while controller.busy:
         time.sleep(0.1)
 
     # erase page test
-    #controller.erase_page(0x400)
+    controller.erase_page(0x0000)
+
+    time.sleep(1.0)
+    controller.end_thread()
+    time.sleep(1.0)
 
     # read addresses
     #address = 0x000
@@ -347,7 +362,7 @@ if __name__ == '__main__':
     # write page of data
     #controller.write_max(0x2000, [0x00123456, 0x00987654, 0x00321098])
 
-    address = 0x400
+    '''address = 0x400
     controller.read_page(address)
     while controller.busy:
         time.sleep(0.1)
@@ -358,4 +373,4 @@ if __name__ == '__main__':
         print('{:06X} {:06X}'.format(i << 1, e))
 
     controller.end_thread()
-    time.sleep(1.0)
+    time.sleep(1.0)'''
