@@ -6,7 +6,7 @@ import serial
 from framer import Framer
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01

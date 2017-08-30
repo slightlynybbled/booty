@@ -17,9 +17,7 @@ def bitwise_not(n, width=32):
     return (1 << width) - 1 - n
 
 
-def load(hex_file_path):
-    hp = HexParser(hex_file_path)
-
+def identify_device():
     # wait for the device to be identified, or wait 10s and exit on fail
     start_time = time.time()
     while not bl.device_identified:
@@ -27,7 +25,18 @@ def load(hex_file_path):
         if time.time() - start_time > 1.0:
             bl.end_thread()
             logger.error('device not responding, check connection and reset device')
-            return
+            time.sleep(0.1)     # time to end the thread
+            return False
+
+    return True
+
+
+def load(hex_file_path):
+    hp = HexParser(hex_file_path)
+
+    if not bl.device_identified:
+        if not identify_device():
+            return False
 
     # calculate some useful constants
     prog_ops_per_page = int(bl.page_length / bl.max_prog_size)
@@ -60,12 +69,22 @@ def load(hex_file_path):
 
             address += bl.max_prog_size << 1
 
-    # wait for all tranmissions are complete
+    # wait for all transmissions are complete
     while bl.busy:
         time.sleep(0.2)
         logger.info('erase/write operations remaining: {}'.format(bl.transactions_remaining))
 
-    # todo: read entire program memory
+    logger.info('loading complete!')
+
+    return True
+
+
+def verify(hex_file_path):
+    hp = HexParser(hex_file_path)
+
+    highest_prog_address = bl.prog_length - bl.page_length
+
+    # read entire program memory
     address = 0
     while address < highest_prog_address:
         logger.debug('reading address {:06X}'.format(address))
@@ -76,17 +95,28 @@ def load(hex_file_path):
     # wait for transmissions to complete
     while bl.busy:
         time.sleep(0.2)
-    time.sleep(1.0)
+        logger.info('flash read operations remaining: {}'.format(bl.transactions_remaining))
 
-    page = bl.local_memory_map[:bl.page_length]
-    for i, e in enumerate(page[:16]):
-        logger.debug('{:06X} {:06X}'.format(i, e))
+    addresses = [a for a in range(bl.app_start_addr, highest_prog_address) if (a % 2) == 0]
+    memory = [bl.get_opcode(a) & 0xffffff for a in range(bl.app_start_addr, highest_prog_address) if (a % 2) == 0]
+    hex_file = [hp.get_opcode(a) & 0xffffff for a in range(bl.app_start_addr, highest_prog_address) if (a % 2) == 0]
 
-    bl.end_thread()
-    time.sleep(1.0)     # time for thread to end itself
+    # check each location in application memory
+    for a, m, h in zip(addresses, memory, hex_file):
+        if m != h:
+            logger.error('address {}: device value "{}" does not match hex value "{}"'.format(a, m, h))
+            return False
 
-    logger.info('operation complete!')
+    logger.info('verification complete')
+    return True
 
 
 if __name__ == '__main__':
-    load('C:/_code/libs/blink.X/dist/default/production/blink.X.production.hex')
+    hex_path = 'C:/_code/libs/blink.X/dist/default/production/blink.X.production.hex'
+
+    identify_device()
+    load(hex_path)
+    verify(hex_path)
+
+    bl.end_thread()
+    time.sleep(1.0)     # time for thread to end itself
