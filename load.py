@@ -24,7 +24,7 @@ def load(hex_file_path):
     start_time = time.time()
     while not bl.device_identified:
         time.sleep(0.1)
-        if time.time() - start_time > 10.0:
+        if time.time() - start_time > 1.0:
             bl.end_thread()
             logger.error('device not responding, check connection and reset device')
             return
@@ -37,27 +37,27 @@ def load(hex_file_path):
     # erase first page, program first page
     address = 0
     bl.erase_page(address)
+    logger.debug('erasing first page...')
 
     for i in range(prog_ops_per_page):
         row_data = [hp.get_opcode(addr) for addr in range(bl.max_prog_size * 2) if addr % 2 == 0]
 
-        logger.debug('writing {} instructions to {}'.format(
-            len(row_data),
-            address + len(row_data) * i)
-        )
-
+        logger.debug('writing first page...')
         bl.write_max(address + len(row_data) * i, row_data)
 
     # erase application start address to uC end address
-    address = bl.app_start_addr
+    address = bl.app_start_addr + 0x100 # works if address = b1.app_start_addr first, then b1 = app_start_addr + 0x100 next
     while address < last_prog_page:
         bl.erase_page(address)
+        logger.debug('erasing {} page...'.format(hex(address)))
 
         for i in range(prog_ops_per_page):
             row_data = [hp.get_opcode(addr + address) for addr in range(bl.max_prog_size * 2) if addr % 2 == 0]
 
-            #for j, d in enumerate(row_data):
-            #    logger.debug('{:06X} {:06X} {:06X}'.format(address + j*2, j * 2, d))
+            logger.debug('writing to {}...'.format(hex(address)))
+
+            #for j, v in enumerate(row_data):
+            #    logger.debug('{}: {}'.format(hex(j), hex(v)))
 
             bl.write_max(address, row_data)
 
@@ -65,10 +65,15 @@ def load(hex_file_path):
 
     # wait for all tranmissions are complete
     while bl.busy:
-        pass
+        time.sleep(1.0)
+        logger.info('erase/write operations remaining: {}'.format(bl.transactions_remaining))
+
+    # todo: verify program memory
 
     bl.end_thread()
-    time.sleep(1.0)
+    time.sleep(1.0)     # time for thread to end itself
+
+    logger.info('operation complete!')
 
 
 if __name__ == '__main__':

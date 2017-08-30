@@ -25,6 +25,8 @@ READ_PAGE = 0x21
 WRITE_ROW = 0x30
 WRITE_MAX = 0x31
 
+START_APP = 0x40
+
 
 class BootLoaderIf:
     def __init__(self, port, timeout=0.01, threaded=True):
@@ -61,7 +63,16 @@ class BootLoaderIf:
         else:
             return False
 
+    @property
+    def transactions_remaining(self):
+        return len(self.transmit_queue)
+
     def end_thread(self):
+        self.add_to_queue(START_APP, 0.01)
+
+        while self.busy:
+            time.sleep(0.001)
+
         self.end = True
         logger.info('ending bootloader interface thread...')
 
@@ -195,7 +206,7 @@ class BootLoaderIf:
         self.add_to_queue(READ_APP_START_ADDRESS, 0.01)
 
     def erase_page(self, address_start):
-        self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.025)
+        self.add_to_queue([ERASE_PAGE, address_start & 0x00ff, (address_start & 0xff00) >> 8], 0.1)
         logger.debug('erasing page addresses {} to {}'.format(
             hex(address_start), hex(address_start + self.page_length * 2 - 1))
         )
@@ -235,7 +246,7 @@ class BootLoaderIf:
             to_tx.append((d & 0x00ff0000) >> 16)
             to_tx.append((d & 0xff000000) >> 24)
 
-        self.add_to_queue(to_tx, 0.010)
+        self.add_to_queue(to_tx, 0.05)
 
     def write_max(self, address, data):
         if not self.max_prog_size:
@@ -262,7 +273,7 @@ class BootLoaderIf:
             to_tx.append((d & 0xff000000) >> 24)
 
         logger.debug('writing maximum length ({}) to program memory'.format(self.max_prog_size))
-        self.add_to_queue(to_tx, len(data)/128 * 0.015)
+        self.add_to_queue(to_tx, len(data) * 0.0005)
 
     def run(self):
         """
