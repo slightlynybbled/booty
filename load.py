@@ -46,7 +46,7 @@ def load(hex_file_path):
         bl.write_max(address + len(row_data) * i, row_data)
 
     # erase application start address to uC end address
-    address = bl.app_start_addr + 0x100 # works if address = b1.app_start_addr first, then b1 = app_start_addr + 0x100 next
+    address = bl.app_start_addr
     while address < last_prog_page:
         bl.erase_page(address)
         logger.debug('erasing {} page...'.format(hex(address)))
@@ -56,19 +56,31 @@ def load(hex_file_path):
 
             logger.debug('writing to {}...'.format(hex(address)))
 
-            #for j, v in enumerate(row_data):
-            #    logger.debug('{}: {}'.format(hex(j), hex(v)))
-
             bl.write_max(address, row_data)
 
             address += bl.max_prog_size << 1
 
     # wait for all tranmissions are complete
     while bl.busy:
-        time.sleep(1.0)
+        time.sleep(0.2)
         logger.info('erase/write operations remaining: {}'.format(bl.transactions_remaining))
 
-    # todo: verify program memory
+    # todo: read entire program memory
+    address = 0
+    while address < highest_prog_address:
+        logger.debug('reading address {:06X}'.format(address))
+        bl.read_page(address)
+
+        address += bl.max_prog_size
+
+    # wait for transmissions to complete
+    while bl.busy:
+        time.sleep(0.2)
+    time.sleep(1.0)
+
+    page = bl.local_memory_map[:bl.page_length]
+    for i, e in enumerate(page[:16]):
+        logger.debug('{:06X} {:06X}'.format(i, e))
 
     bl.end_thread()
     time.sleep(1.0)     # time for thread to end itself

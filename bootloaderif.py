@@ -6,7 +6,7 @@ import serial
 from framer import Framer
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01
@@ -67,8 +67,9 @@ class BootLoaderIf:
     def transactions_remaining(self):
         return len(self.transmit_queue)
 
-    def end_thread(self):
-        self.add_to_queue(START_APP, 0.01)
+    def end_thread(self, start_app=False):
+        if start_app:
+            self.add_to_queue(START_APP, 0.01)
 
         while self.busy:
             time.sleep(0.001)
@@ -147,7 +148,7 @@ class BootLoaderIf:
             self.app_start_addr = msg[1] + (msg[2] << 8)
             logger.info('application start address set: {}'.format(self.app_start_addr))
 
-        elif command == READ_ADDR:
+        elif command == READ_ADDR or command == READ_PAGE:
             mem = msg[1:]
             width_in_bytes = 4
 
@@ -163,13 +164,14 @@ class BootLoaderIf:
                     memory += num << (i * 8)
                 prog_mem.append(memory)
 
-            address = prog_mem[0]
-            value = prog_mem[1]
+            address = prog_mem.pop(0)
 
-            if self.local_memory_map:
-                self.local_memory_map[address >> 1] = value
+            for i, e in enumerate(prog_mem):
+                local_mem_index = (address >> 1) + i
+                if self.local_memory_map:
+                    self.local_memory_map[local_mem_index] = e
 
-            logger.debug('{:04X}: {:06X}'.format(address, value))
+                    logger.debug('local: {:06X}: {:06X}'.format(local_mem_index << 1, e))
 
         else:
             logger.warning('command not found: {}'.format(command))
@@ -211,10 +213,11 @@ class BootLoaderIf:
             hex(address_start), hex(address_start + self.page_length * 2 - 1))
         )
 
-    def read_row(self, address):
+    def read(self, address):
         address &= 0xfffffffe   # must be an even address
 
-        self.add_to_queue([
+        self.add_to_queue(
+            [
                 READ_ADDR,
                 (address & 0x000000ff),
                 (address & 0x0000ff00) >> 8,
@@ -222,6 +225,25 @@ class BootLoaderIf:
                 (address & 0xff000000) >> 24,
             ],
             0.003
+        )
+
+        time.sleep(0.001)
+
+    def read_page(self, address):
+        address &= 0xfffffffe   # must be an even address
+
+        wait_time = self.max_prog_size/128 * 0.06
+        logger.debug('wait time: {}'.format(wait_time))
+
+        self.add_to_queue(
+            [
+                READ_PAGE,
+                (address & 0x000000ff),
+                (address & 0x0000ff00) >> 8,
+                (address & 0x00ff0000) >> 16,
+                (address & 0xff000000) >> 24,
+            ],
+            wait_time
         )
 
     def write_row(self, address, data):
@@ -275,6 +297,9 @@ class BootLoaderIf:
         logger.debug('writing maximum length ({}) to program memory'.format(self.max_prog_size))
         self.add_to_queue(to_tx, len(data) * 0.0005)
 
+    def get_opcode(self, address):
+        return self.local_memory_map[address >> 1]
+
     def run(self):
         """
         Receives the serial data into the self._raw buffer
@@ -299,7 +324,8 @@ if __name__ == '__main__':
     controller = BootLoaderIf(port=port)
 
     controller.query_device()
-    time.sleep(0.1)
+    while controller.busy:
+        time.sleep(0.1)
 
     # erase page test
     #controller.erase_page(0x400)
@@ -309,7 +335,7 @@ if __name__ == '__main__':
     #max_address = 0x200
     #while address < controller.prog_length and address < max_address:
     #    logger.debug('{:06X}'.format(address))
-    #    controller.read_row(address)
+    #    controller.read(address)
     #    address += 2
 
     #for i, e in enumerate(controller.local_memory_map[:10]):
@@ -320,3 +346,16 @@ if __name__ == '__main__':
 
     # write page of data
     #controller.write_max(0x2000, [0x00123456, 0x00987654, 0x00321098])
+
+    address = 0x400
+    controller.read_page(address)
+    while controller.busy:
+        time.sleep(0.1)
+
+    time.sleep(1.0)
+
+    for i, e in enumerate(controller.local_memory_map[:0x300]):
+        print('{:06X} {:06X}'.format(i << 1, e))
+
+    controller.end_thread()
+    time.sleep(1.0)
