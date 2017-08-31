@@ -136,7 +136,7 @@ class BootLoaderThread:
             logger.info('page length set: {}'.format(self.page_length))
 
         elif command == READ_PROG_LEN:
-            self.prog_length = msg[1] + (msg[2] << 8)
+            self.prog_length = msg[1] + (msg[2] << 8) + (msg[3] << 16) + (msg[4] << 24)
             logger.info('program length set: {}'.format(self.prog_length))
 
             self.local_memory_map = [0xffffff] * (0x200 * self.prog_length >> 1)
