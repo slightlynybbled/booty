@@ -1,12 +1,16 @@
 import logging
 import time
 
-from hex import HexParser
-from comm_thread import BootLoaderThread
+from booty.hex import HexParser
+from booty.comm_thread import BootLoaderThread
 import serial
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logger.setLevel(logging.WARNING)
+
+
+def create_serial_port(port_name, baud_rate=115200):
+    return serial.Serial(port_name, baudrate=baud_rate)
 
 
 def create_blt(port):
@@ -34,7 +38,9 @@ def identify_device(boot_loader_app, timeout=5.0):
     return True
 
 
-def load(boot_loader_app, hex_file_path):
+def load_hex(boot_loader_app, hex_file_path):
+    logger.info('loading device...')
+
     hp = HexParser(hex_file_path)
 
     if not boot_loader_app.device_identified:
@@ -80,8 +86,14 @@ def load(boot_loader_app, hex_file_path):
     return True
 
 
-def verify(boot_loader_app, hex_file_path):
+def verify_hex(boot_loader_app, hex_file_path):
+    logger.info('reading flash from device...')
+
     hp = HexParser(hex_file_path)
+
+    if not boot_loader_app.device_identified:
+        if not identify_device(boot_loader_app):
+            return False
 
     highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
 
@@ -116,12 +128,13 @@ def verify(boot_loader_app, hex_file_path):
     hex_file = [hp.get_opcode(a) & 0xffffff for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
 
     # check each location in application memory
+    logger.info('verifying....')
     for a, m, h in zip(addresses, memory, hex_file):
         if m != h:
             logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(a, m, h))
             return False
 
-    logger.info('verification complete')
+    logger.info('verification complete!')
     return True
 
 
@@ -133,8 +146,8 @@ if __name__ == '__main__':
     blt = BootLoaderThread(port)
 
     identify_device(blt)
-    load(blt, hex_path)
-    verify(blt, hex_path)
+    load_hex(blt, hex_path)
+    verify_hex(blt, hex_path)
 
     blt.end_thread()
     time.sleep(1.0)     # time for thread to end itself

@@ -3,10 +3,10 @@ import threading
 import time
 
 import serial
-from framer import Framer
+from booty.framer import Framer
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01
