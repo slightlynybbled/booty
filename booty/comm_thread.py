@@ -14,13 +14,12 @@ READ_ROW_LEN = 0x02
 READ_PAGE_LEN = 0x03
 READ_PROG_LEN = 0x04
 READ_MAX_PROG_SIZE = 0x05
-READ_APP_START_ADDRESS = 0x07
+READ_APP_START_ADDRESS = 0x06
 
 ERASE_PAGE = 0x10
-ERASE_ALL = 0x11
 
 READ_ADDR = 0x20
-READ_PAGE = 0x21
+READ_MAX = 0x21
 
 WRITE_ROW = 0x30
 WRITE_MAX = 0x31
@@ -149,7 +148,7 @@ class BootLoaderThread:
             self.app_start_addr = msg[1] + (msg[2] << 8)
             logger.info('application start address set: {}'.format(self.app_start_addr))
 
-        elif command == READ_ADDR or command == READ_PAGE:
+        elif command == READ_ADDR or command == READ_MAX:
             mem = msg[1:]
             width_in_bytes = 4
 
@@ -248,7 +247,7 @@ class BootLoaderThread:
 
         self.add_to_queue(
             [
-                READ_PAGE,
+                READ_MAX,
                 (address & 0x000000ff),
                 (address & 0x0000ff00) >> 8,
                 (address & 0x00ff0000) >> 16,
