@@ -217,7 +217,7 @@ class BootLoaderThread:
                 (address_start & 0x00ff0000) >> 16,
                 (address_start & 0xff000000) >> 24,
             ],
-            0.1
+            0.025
         )
 
         logger.debug('erasing page addresses {} to {}'.format(
@@ -243,7 +243,7 @@ class BootLoaderThread:
     def read_page(self, address):
         address &= 0xfffffffe   # must be an even address
 
-        wait_time = self.max_prog_size/128 * 0.06
+        wait_time = self.max_prog_size/128 * 0.05
         logger.debug('wait time: {}'.format(wait_time))
 
         self.add_to_queue(

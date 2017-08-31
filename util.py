@@ -53,9 +53,6 @@ def load(boot_loader_app, hex_file_path):
 
     for i in range(prog_ops_per_page):
         row_data = [hp.get_opcode(addr + (i * boot_loader_app.max_prog_size)) for addr in range(boot_loader_app.max_prog_size * 2) if addr % 2 == 0]
-
-        logger.debug('{}'.format([hex(e) for e in row_data]))
-
         logger.debug('writing first page...')
         boot_loader_app.write_max(address + len(row_data) * i, row_data)
 
