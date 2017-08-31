@@ -32,7 +32,7 @@ def main(hexfile, port, baudrate, load, verify):
     blt = create_blt(sp)
 
     # allow time for threads and hardware to spin up
-    #time.sleep(1.0)
+    time.sleep(0.5)
 
     if load:
         logger.info('loading...')

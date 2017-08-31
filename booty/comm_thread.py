@@ -6,7 +6,7 @@ import serial
 from booty.framer import Framer
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 READ_PLATFORM = 0x00
 READ_VERSION = 0x01
