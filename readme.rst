@@ -7,7 +7,7 @@ memory.  This program takes a hex file as the input and will parse that hex file
 the microcontroller bootloader over a serial UART (commonly referred to as a "serial port" or
 "COM port").
 
-The sole companion project to this is the `bootypic <http://github.com/slightlynybbled/bootpic>`_ project.
+The sole companion project to this is the `bootypic <http://github.com/slightlynybbled/bootypic>`_ project.
 Hopefully, more will follow.
 
 ====================
