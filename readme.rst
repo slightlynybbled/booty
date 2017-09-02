@@ -80,12 +80,12 @@ and takes 17.1s from first byte to last in order to transfer and verify 27.6kB o
 room to improve this a bit, but not much without impacting the compiled size of the device bootloader.  Also keep in
 mind that flash erase and write cycles have minimum times associated with them.
 
-    .. image:: /docs/img/poll-program-verify.png
+    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/poll-program-verify.png
 
 A close up of page erase followed by a series of writes (4 writes of 128 instructions for each erase of 512 instructions):
 
-    .. image:: /docs/img/erase-load.png
+    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/erase-load.png
 
 A close up of reads:
 
-    .. image:: /docs/img/read.png
+    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/read.png
