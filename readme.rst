@@ -17,6 +17,12 @@ Installation
 The easiest way to install this utility is to ``pip install booty``.  Alternatively, you may download
 this repository, navigate to the root directory of the repository, and ``python setup.py install``.
 
+This utility is dependent on three currently-maintained python projects:
+
+ * click - for easy command-line utilities
+ * intelhex - for easy parsing of hex files
+ * pyserial - for UART communication 
+
 ====================
 Running
 ====================
@@ -67,6 +73,10 @@ The utility will execute a series of commands and result in an output similar to
 How it Works
 ====================
 
+-------------------
+Programming Sequence
+-------------------
+
 All relevant information is stored on the microcontroller, meaning that the relevant data is stored at compile-time.
 
 The programming takes place in three stages:
@@ -89,3 +99,18 @@ A close up of page erase followed by a series of writes (4 writes of 128 instruc
 A close up of reads:
 
     .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/read.png
+
+-------------------
+Threaded Execution
+-------------------
+
+At the lowest level, there is a thread which takes commands from higher level software and creates an internal queue which 
+is executed in sequence.  This layer will execute simple commands, such as "read flash", "write flash", etc. while also 
+ensuring that the protocols, required sizes, and timing constraints are enforced.
+
+At the higher level, the hex file is read and a command set is created for the low-level software.  At various places, there 
+are "waits" put in place.  For instance, the high level software might request that the low level software do all of the 
+write operations before it moves on to a verification stage.  This is more clear in the source code.
+
+The high-level operations may be found in ``/booty/__main__.py`` and ``/booty/util.py`` while the low-level thread may be 
+found in ``/booty/comm_thread.py``.
