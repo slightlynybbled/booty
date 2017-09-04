@@ -14,8 +14,8 @@ Hopefully, more will follow.
 Installation
 ====================
 
-The easiest way to install this utility is to `pip install booty`.  Alternatively, you may download
-this repository, navigate to the root directory of the repository, and `python setup.py install`.
+The easiest way to install this utility is to ``pip install booty``.  Alternatively, you may download
+this repository, navigate to the root directory of the repository, and ``python setup.py install``.
 
 ====================
 Running
