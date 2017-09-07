@@ -51,3 +51,6 @@ def main(hexfile, port, baudrate, load, verify):
             logger.info('device verified!')
         else:
             logger.warning('device verification failed')
+
+if __name__ == '__main__':
+    main()
