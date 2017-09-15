@@ -6,7 +6,7 @@ from booty.comm_thread import BootLoaderThread
 import serial
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 def create_serial_port(port_name, baud_rate=115200):
