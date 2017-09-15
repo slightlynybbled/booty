@@ -6,7 +6,7 @@ from booty.comm_thread import BootLoaderThread
 import serial
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
 
 
 def create_serial_port(port_name, baud_rate=115200):
@@ -25,7 +25,7 @@ def identify_device(boot_loader_app, timeout=5.0):
     # wait for the device to be identified, or wait 10s and exit on fail
     start_time = time.time()
     while not boot_loader_app.device_identified:
-        time.sleep(0.1)
+        time.sleep(0.2)
         boot_loader_app.query_device()
 
         # when time expires, then exit the program
@@ -38,17 +38,9 @@ def identify_device(boot_loader_app, timeout=5.0):
     return True
 
 
-def load_hex(boot_loader_app, hex_file_path):
-    logger.info('loading device...')
+def erase_device(boot_loader_app):
+    logger.info('erasing device...')
 
-    hp = HexParser(hex_file_path)
-
-    if not boot_loader_app.device_identified:
-        if not identify_device(boot_loader_app):
-            return False
-
-    # calculate some useful constants
-    prog_ops_per_page = int(boot_loader_app.page_length / boot_loader_app.max_prog_size)
     highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
     last_prog_page = highest_prog_address & bitwise_not(boot_loader_app.page_length - 1)
 
@@ -57,29 +49,52 @@ def load_hex(boot_loader_app, hex_file_path):
     boot_loader_app.erase_page(address)
     logger.debug('erasing first page...')
 
-    for i in range(prog_ops_per_page):
-        row_data = [hp.get_opcode(addr + (i * boot_loader_app.max_prog_size)) for addr in range(boot_loader_app.max_prog_size * 2) if addr % 2 == 0]
-        logger.debug('writing first page...')
-        boot_loader_app.write_max(address + len(row_data) * i, row_data)
-
-    # erase application start address to uC end address
     address = boot_loader_app.app_start_addr
     while address < last_prog_page:
         boot_loader_app.erase_page(address)
         logger.debug('erasing {} page...'.format(hex(address)))
-
-        for i in range(prog_ops_per_page):
-            row_data = [hp.get_opcode(addr + address) for addr in range(boot_loader_app.max_prog_size * 2) if addr % 2 == 0]
-
-            logger.debug('writing to {}...'.format(hex(address)))
-
-            boot_loader_app.write_max(address, row_data)
-            address += boot_loader_app.max_prog_size << 1
+        address += boot_loader_app.page_length
 
     # wait for all transmissions are complete
     while boot_loader_app.busy:
         time.sleep(0.2)
-        logger.info('erase/write operations remaining: {}'.format(boot_loader_app.transactions_remaining))
+        logger.info('erase operations remaining: {}'.format(boot_loader_app.transactions_remaining))
+
+    logger.info('erasure complete!')
+
+    return True
+
+
+def load_hex(boot_loader_app, hex_file_path):
+    logger.info('loading device...')
+
+    hp = HexParser(hex_file_path)
+
+    # calculate some useful constants
+    prog_ops_per_erase = int(boot_loader_app.page_length / boot_loader_app.max_prog_size)
+    highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
+    last_prog_page = highest_prog_address & bitwise_not(boot_loader_app.page_length - 1)
+
+    # erase first page, program first page
+    address = 0
+    for i in range(prog_ops_per_erase):
+        row_data = [hp.get_opcode(addr + (i * boot_loader_app.max_prog_size)) for addr in range(boot_loader_app.max_prog_size * 2) if addr % 2 == 0]
+        logger.debug('writing first page...')
+        boot_loader_app.write_max(address + len(row_data) * i, row_data)
+
+    address = boot_loader_app.app_start_addr
+    while address < last_prog_page:
+        row_data = [hp.get_opcode(addr + address) for addr in range(boot_loader_app.max_prog_size * 2) if addr % 2 == 0]
+
+        logger.debug('writing to {}...'.format(hex(address)))
+
+        boot_loader_app.write_max(address, row_data)
+        address += boot_loader_app.max_prog_size << 1
+
+    # wait for all transmissions are complete
+    while boot_loader_app.busy:
+        time.sleep(0.2)
+        logger.info('write operations remaining: {}'.format(boot_loader_app.transactions_remaining))
 
     logger.info('loading complete!')
 
@@ -90,10 +105,6 @@ def verify_hex(boot_loader_app, hex_file_path):
     logger.info('reading flash from device...')
 
     hp = HexParser(hex_file_path)
-
-    if not boot_loader_app.device_identified:
-        if not identify_device(boot_loader_app):
-            return False
 
     highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
 

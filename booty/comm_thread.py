@@ -15,6 +15,7 @@ READ_PAGE_LEN = 0x03
 READ_PROG_LEN = 0x04
 READ_MAX_PROG_SIZE = 0x05
 READ_APP_START_ADDRESS = 0x06
+READ_BOOT_START_ADDRESS = 0x07
 
 ERASE_PAGE = 0x10
 
@@ -43,6 +44,7 @@ class BootLoaderThread:
         self.prog_length = None
         self.max_prog_size = None
         self.app_start_addr = None
+        self.boot_start_addr = None
 
         self.device_identified = False
 
@@ -55,6 +57,12 @@ class BootLoaderThread:
             self._runner.start()
 
         self.query_device()
+
+        start_time = time.time()
+        while not self.device_identified:
+            if time.time() - start_time > 3.0:
+                break
+            time.sleep(0.01)
 
     @property
     def busy(self):
@@ -106,7 +114,8 @@ class BootLoaderThread:
                     and self.page_length is not None \
                     and self.prog_length is not None \
                     and self.max_prog_size is not None \
-                    and self.app_start_addr is not None:
+                    and self.app_start_addr is not None \
+                    and self.boot_start_addr is not None:
                 self.device_identified = True
                 logger.info('device identification complete')
 
@@ -148,6 +157,10 @@ class BootLoaderThread:
             self.app_start_addr = msg[1] + (msg[2] << 8)
             logger.info('application start address set: {}'.format(self.app_start_addr))
 
+        elif command == READ_BOOT_START_ADDRESS:
+            self.boot_start_addr = msg[1] + (msg[2] << 8)
+            logger.info('bootloader start address set: {}'.format(self.boot_start_addr))
+
         elif command == READ_ADDR or command == READ_MAX:
             mem = msg[1:]
             width_in_bytes = 4
@@ -185,27 +198,31 @@ class BootLoaderThread:
         self.query_prog_length()
         self.query_max_prog_size()
         self.query_app_start_address()
+        self.query_boot_start_address()
 
     def query_platform(self):
-        self.add_to_queue(READ_PLATFORM, 0.01)
+        self.add_to_queue(READ_PLATFORM, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_version(self):
-        self.add_to_queue(READ_VERSION, 0.01)
+        self.add_to_queue(READ_VERSION, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_row_length(self):
-        self.add_to_queue(READ_ROW_LEN, 0.01)
+        self.add_to_queue(READ_ROW_LEN, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_page_length(self):
-        self.add_to_queue(READ_PAGE_LEN, 0.01)
+        self.add_to_queue(READ_PAGE_LEN, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_prog_length(self):
-        self.add_to_queue(READ_PROG_LEN, 0.01)
+        self.add_to_queue(READ_PROG_LEN, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_max_prog_size(self):
-        self.add_to_queue(READ_MAX_PROG_SIZE, 0.01)
+        self.add_to_queue(READ_MAX_PROG_SIZE, 0.01 * 115200/self._framer._port.baudrate)
 
     def query_app_start_address(self):
-        self.add_to_queue(READ_APP_START_ADDRESS, 0.01)
+        self.add_to_queue(READ_APP_START_ADDRESS, 0.01 * 115200/self._framer._port.baudrate)
+
+    def query_boot_start_address(self):
+        self.add_to_queue(READ_BOOT_START_ADDRESS, 0.01 * 115200/self._framer._port.baudrate)
 
     def erase_page(self, address_start):
         self.add_to_queue(
@@ -234,15 +251,15 @@ class BootLoaderThread:
                 (address & 0x00ff0000) >> 16,
                 (address & 0xff000000) >> 24,
             ],
-            0.003
+            0.010 * 115200/self._framer._port.baudrate
         )
 
-        time.sleep(0.001)
+        time.sleep(0.05 * 115200.0/self._framer._port.baudrate)
 
     def read_page(self, address):
         address &= 0xfffffffe   # must be an even address
 
-        wait_time = self.max_prog_size/128 * 0.05
+        wait_time = self.max_prog_size/128 * 0.05 * 115200.0 / self._framer._port.baudrate
         logger.debug('wait time: {}'.format(wait_time))
 
         self.add_to_queue(
@@ -278,7 +295,7 @@ class BootLoaderThread:
             to_tx.append((d & 0x00ff0000) >> 16)
             to_tx.append((d & 0xff000000) >> 24)
 
-        self.add_to_queue(to_tx, 0.05)
+        self.add_to_queue(to_tx, 0.05 * 115200/self._framer._port.baudrate)
 
     def write_max(self, address, data):
         if not self.max_prog_size:
@@ -305,7 +322,7 @@ class BootLoaderThread:
             to_tx.append((d & 0xff000000) >> 24)
 
         logger.debug('writing maximum length ({}) to program memory'.format(self.max_prog_size))
-        self.add_to_queue(to_tx, len(data) * 0.0005)
+        self.add_to_queue(to_tx, len(data) * 0.0005 * 115200/self._framer._port.baudrate)
 
     def get_opcode(self, address):
         return self.local_memory_map[address >> 1]
