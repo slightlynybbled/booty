@@ -87,10 +87,9 @@ The programming takes place in three stages:
  2. loading - a series of write cycles which write to the program memory of the microcontroller
  3. verify - a series of read cycles and final verification of the user memory
 
-Each of these sections can be clearly observed on a logic analyzer.  The capture shown was using a dsPIC33EP32MC204
-and takes 17.1s from first byte to last in order to transfer and verify 27.6kB of program data.  There is probably some
-room to improve this a bit, but not much without impacting the compiled size of the device bootloader.  Also keep in
-mind that flash erase and write cycles have minimum times associated with them.
+Shown is a complete id/erase/load/verify of a 16k device at 57600bits/s and operating at 12MIPS, which takes 15.8s.
+Each section is delimited by the green markers.  This load time could obviously be reduced by running at a faster baud
+rate.
 
     .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/id-erase-load-verify.png
 
