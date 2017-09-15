@@ -30,23 +30,24 @@ Running
 Assuming that this is installed in your root python environment, it will create a command-line utility
 which can be directly invoked::
 
-    user ~$ booty --help
-    Usage: booty [OPTIONS]
+    Usage: __main__.py [OPTIONS]
 
     Options:
-      -h, --hexfile PATH      The path to the hex file  [required]
+      -h, --hexfile PATH      The path to the hex file
       -p, --port TEXT         Serial port (COMx on Windows devices, ttyXX on Unix-
                               like devices)  [required]
       -b, --baudrate INTEGER  Baud rate in bits/s (defaults to 115200)
+      -e, --erase             Erase the application space of the device
       -l, --load              Load the device with the hex file
       -v, --verify            Verify device
+      -V, --version           Show software version
       --help                  Show this message and exit.
 
 Of course, to use the package, there are some options that need to be specified.  The two most necessary
-options are the `--hexfile` and `--port` options.  Additionally, either the `--load` or `--verify` should
+options are the `--hexfile` and `--port` options.  Additionally, either the `--erase`, `--load`, or `--verify` should
 be specified or no action will take place.  This is, after all, a loading and/or verification utility.
 
-If `--load` and `--verify` are specified, the loading will take place first.
+Regardless of the order of the input parameters, the order of execution will be erase, load, then verify.
 
 A common command to load and verify a device might look like this::
 
@@ -81,24 +82,17 @@ All relevant information is stored on the microcontroller, meaning that the rele
 
 The programming takes place in three stages:
 
- 1. device polling - determines what the device is, the command set available, and the page erase and write sizes
- 2. erase/program - a series of erase/program cycles which write to the program memory of the microcontroller
- 3. read/verify - a complete read and verification of the user memory
+ 1. device identification - determines what the device is, the command set available, and the page erase and write sizes
+ 2. erasure - erasure of all application-programmable memory
+ 2. loading - a series of write cycles which write to the program memory of the microcontroller
+ 3. verify - a series of read cycles and final verification of the user memory
 
 Each of these sections can be clearly observed on a logic analyzer.  The capture shown was using a dsPIC33EP32MC204
 and takes 17.1s from first byte to last in order to transfer and verify 27.6kB of program data.  There is probably some
 room to improve this a bit, but not much without impacting the compiled size of the device bootloader.  Also keep in
 mind that flash erase and write cycles have minimum times associated with them.
 
-    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/poll-program-verify.png
-
-A close up of page erase followed by a series of writes (4 writes of 128 instructions for each erase of 512 instructions):
-
-    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/erase-load.png
-
-A close up of reads:
-
-    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/read.png
+    .. image:: https://github.com/slightlynybbled/booty/blob/master/docs/img/id-erase-load-verify.png
 
 -------------------
 Threaded Execution
