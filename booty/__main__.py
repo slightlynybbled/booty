@@ -9,8 +9,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 @click.command()
-@click.option('--hexfile', '-h',help='The path to the hex file', type=click.Path())
-@click.option('--port', '-p', required=True, help='Serial port (COMx on Windows devices, ttyXX on Unix-like devices)')
+@click.option('--hexfile', '-h', help='The path to the hex file', type=click.Path())
+@click.option('--port', '-p', help='Serial port (COMx on Windows devices, ttyXX on Unix-like devices)')
 @click.option('--baudrate', '-b', default=115200, help='Baud rate in bits/s (defaults to 115200)')
 @click.option('--erase', '-e', is_flag=True, help='Erase the application space of the device')
 @click.option('--load', '-l', is_flag=True, help='Load the device with the hex file')
