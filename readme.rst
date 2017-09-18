@@ -84,8 +84,8 @@ The programming takes place in three stages:
 
  1. device identification - determines what the device is, the command set available, and the page erase and write sizes
  2. erasure - erasure of all application-programmable memory
- 2. loading - a series of write cycles which write to the program memory of the microcontroller
- 3. verify - a series of read cycles and final verification of the user memory
+ 3. loading - a series of write cycles which write to the program memory of the microcontroller
+ 4. verify - a series of read cycles and final verification of the user memory
 
 Shown is a complete id/erase/load/verify of a 16k device at 57600bits/s and operating at 12MIPS, which takes 15.8s.
 Each section is delimited by the green markers.  This load time could obviously be reduced by running at a faster baud
