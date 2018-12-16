@@ -192,7 +192,7 @@ Command Sets: 0.1
 
 The ``CMD_READ_APP_START_ADDRESS`` command instructs the microcontroller to return the starting address
 of the application.  This will usually be 0x1000.  This will be utilized for checking application integrity
-during the verification stage.
+during the verification stage.::
 
     master:   [CMD_READ_MAX_PROG_SIZE]
     response: [CMD_READ_MAX_PROG_SIZE] [address(7:0)] [address(15:8)]
