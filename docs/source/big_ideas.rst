@@ -61,4 +61,5 @@ from that point.
     :align: center
     :alt: memory maps
 
-
+Generally, a customer linker script will be utilized to impose image location requirements on the bootloader
+and the application.

@@ -22,6 +22,7 @@ add a little booty to your project and make upgrading your firmware a breeze.
    intro
    big_ideas
    comm_protocol
+   master_implementation
 
 Indices and tables
 ==================
