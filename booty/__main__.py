@@ -61,5 +61,6 @@ def main(hexfile, port, baudrate, erase, load, verify, version):
         else:
             logger.warning('device verification failed')
 
+
 if __name__ == '__main__':
     main()

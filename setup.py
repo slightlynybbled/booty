@@ -13,6 +13,12 @@ exec(open(os.path.join(here, 'booty/version.py')).read())
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
+setup_requirements = [
+    'flake8 >= 3.5.0',
+    'sphinx >= 1.6',
+    'pytest >= 3.5'
+]
+
 # ---------------------------------
 # project setup
 setup(
@@ -25,6 +31,7 @@ setup(
     url='https://github.com/slightlynybbled/booty',
     packages=find_packages(),
     install_requires=requirements,
+    setup_requires=setup_requirements,
     entry_points={'console_scripts': ['booty = booty.__main__:main']},
     license='MIT',
     classifiers=[
