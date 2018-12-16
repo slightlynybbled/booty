@@ -218,7 +218,7 @@ Character: 0x20
 Command Sets: 0.1
 
 The ``CMD_READ_ADDRESS`` command instructs the microcontroller read a single value from flash memory 
-and to return that value.
+and to return that value.::
 
     master:   [CMD_READ_ADDRESS] [address(7:0)] [address(15:8)] [address(23:16)] [address(31:24)]
     response: [CMD_READ_ADDRESS] [address(7:0)] [address(15:8)] [address(23:16)] [address(31:24)]
