@@ -1,5 +1,5 @@
 ========================
-Communication Protocol
+Protocol
 ========================
 
 This document describes the communications protocol for the bootypic repository
@@ -11,7 +11,7 @@ layer is concerned with interpreting the payload of the frame so that the softwa
 may respond accordingly.
 
 ------------------------
-Framing Layer
+Framing
 ------------------------
 
 All frames have a Start of Frame (SOF) byte at the beginning and an End of Frame (EOF) 
@@ -45,16 +45,9 @@ If, for instance, data4 corresponded to the SOF byte, the stream would be modifi
 In this way, it is possible to give up a small amount of transmission efficiency in order to
 be able to transmit the entire range of data.
 
-****************
-Behavior
-****************
-
-If a F16 value is correct, then the packet is forwarded up to the next software layer.  If it
-is incorrect, then the packet is discarded.
-
-****************
+********************
 Special Characters
-****************
+********************
 
 The special characters are the SOF, EOF, ESC, and ESC_XOR.  These values are ONLY to be used
 as part of the framing protocol.  All payload bytes that correspond to these values are to
@@ -65,16 +58,59 @@ be escaped::
     [ESC] 0xf6
     [ESC_XOR] 0x20
 
+****************
+Behavior
+****************
+
+If a F16 value is correct, then the packet is forwarded up to the next software layer.  If it
+is incorrect, then the packet is discarded.
+
+***************************
+Fletcher 16 Verification
+***************************
+
+Each frame is verified using a fletcher16 algorithm on all data bytes.  The Python
+implementation of the fletcher16 algorithm is as follows::
+
+    sum1 = 0
+    sum2 = 0
+
+    for i, b in enumerate(data):
+        sum1 += b
+        sum1 &= 0xff  # Results wrapped at 16 bits
+        sum2 += sum1
+        sum2 &= 0xff
+
+    return sum1, sum2
+
+A similar implementation in C is as follows::
+
+    uint16_t fletcher16(uint8_t* data, uint16_t length){
+        uint16_t sum1 = 0, sum2 = 0, checksum;
+
+        uint16_t i = 0;
+        while(i < length){
+            sum1 = (sum1 + (uint16_t)data[i]) & 0xff;
+            sum2 = (sum2 + sum1) & 0xff;
+            i++;
+        }
+
+        checksum = (sum2 << 8) | sum1;
+
+        return checksum;
+    }
+
+
 ------------------------
-Command Layer
+Commands
 ------------------------
 
 The command layer may have multiple versions, which will be saved to the microcontroller at 
 compile time.
 
-****************
+********************
 Command Structure
-****************
+********************
 
 A typical command packet, stripped of framing information::
 
@@ -91,9 +127,10 @@ in the CMD_START_APP command.
 Behavior
 ****************
 
-The PC will typically be the master and the microcontroller will simply respond to the commands.
-Many commands have no required response, such as CMD_ERASE_PAGE.  Others that require a response 
-will simply embed the same command into the structure of the response.
+The PC will typically be the server and the microcontroller will simply respond to the commands
+as a directed client.  Many commands have no required response, such as
+CMD_ERASE_PAGE.  Others that require a response will simply embed the same command
+into the structure of the response.
 
 When strings are being passed, they will be passed as ASCII bytes and transmitted with the null
 string terminator ``\0``.  These are represented in the commands as a string with quotes.::
@@ -101,13 +138,24 @@ string terminator ``\0``.  These are represented in the commands as a string wit
     representation: "my str\0"
     transmitted: [0x6d] [0x79] [0x20] [0x73] [0x74] [0x72] [0x00]
 
-****************
-Command Set
-****************
+------------------------
+Command Sets
+------------------------
 
-############
+In order to increase flexibility across devices, command version sets are created
+which will allow the server software to determine the command set that may be
+utilized with the particular device and bootloader variant.  At this time, there
+is only one command set called ``0.1``, which includes all commands as listed below.
+All of the below commands will be included as a subset of future command sets for
+backward compatibility.
+
+------------------------
+Supported Commands
+------------------------
+
+********************
 Read Platform
-############
+********************
 
 Character: 0x00
 Command Sets: 0.1
@@ -118,9 +166,9 @@ the platform, which usually corresponds to a microcontroller part number::
     master:   [CMD_READ_PLATFORM]
     response: [CMD_READ_PLATFORM] "dspic33ep32mc204\0"
 
-############
+********************
 Read Version
-############
+********************
 
 Character: 0x01
 Command Sets: 0.1
@@ -131,9 +179,9 @@ the instruction set that it supports::
     master:   [CMD_READ_VERSION]
     response: [CMD_READ_VERSION] "0.1\0"
 
-############
+********************
 Read Row Length
-############
+********************
 
 Character: 0x02
 Command Sets: 0.1
@@ -144,9 +192,9 @@ that can be programmed at one time::
     master:   [CMD_READ_ROW_LENGTH]
     response: [CMD_READ_ROW_LENGTH] [length(7:0)] [length(15:8)]
 
-############
+********************
 Read Page Length
-############
+********************
 
 Character: 0x03
 Command Sets: 0.1
@@ -157,9 +205,9 @@ in instructions::
     master:   [CMD_READ_PAGE_LENGTH]
     response: [CMD_READ_PAGE_LENGTH] [length(7:0)] [length(15:8)]
 
-############
+**********************************
 Read Max Program Memory Length
-############
+**********************************
 
 Character: 0x04
 Command Sets: 0.1
@@ -170,9 +218,9 @@ which is the maximum address that may be programmed to::
     master:   [CMD_READ_PROG_LENGTH]
     response: [CMD_READ_PROG_LENGTH] [length(7:0)] [length(15:8)] [length(23:16)] [length(31:24)]
 
-############
+**********************************
 Read Max Program Size
-############
+**********************************
 
 Character: 0x05
 Command Sets: 0.1
@@ -183,9 +231,9 @@ size that it will support in instructions::
     master:   [CMD_READ_MAX_PROG_SIZE]
     response: [CMD_READ_MAX_PROG_SIZE] [length(7:0)] [length(15:8)]
 
-############
+**********************************
 Read App Start Address
-############
+**********************************
 
 Character: 0x06
 Command Sets: 0.1
@@ -197,9 +245,9 @@ during the verification stage.::
     master:   [CMD_READ_MAX_PROG_SIZE]
     response: [CMD_READ_MAX_PROG_SIZE] [address(7:0)] [address(15:8)]
 
-############
+**********************************
 Erase Page
-############
+**********************************
 
 Character: 0x10
 Command Sets: 0.1
@@ -210,9 +258,9 @@ at the provided address.::
     master:   [CMD_ERASE_PAGE] [address(7:0)] [address(15:8)] [address(23:16)] [address(31:24)]
     response: -
 
-############
+**********************************
 Read Address
-############
+**********************************
 
 Character: 0x20
 Command Sets: 0.1
@@ -224,9 +272,9 @@ and to return that value.::
     response: [CMD_READ_ADDRESS] [address(7:0)] [address(15:8)] [address(23:16)] [address(31:24)]
                                  [value(7:0)] [value(15:8)] [value(23:16)] [value(31:24)]
 
-############
+**********************************
 Read Max
-############
+**********************************
 
 Character: 0x21
 Command Sets: 0.1
@@ -242,9 +290,9 @@ of memory::
                                  [...]
                                  [valueX(7:0)] [valueX(15:8)] [valueX(23:16)] [valueX(31:24)]
 
-############
+**********************************
 Write Row
-############
+**********************************
 
 Character: 0x30
 Command Sets: 0.1
@@ -261,9 +309,9 @@ instructions, so it may not be very efficient.::
 
     response: -
 
-############
+**********************************
 Write Max
-############
+**********************************
 
 Character: 0x31
 Command Sets: 0.1
@@ -280,9 +328,9 @@ efficient method of writing.::
 
     response: -
 
-############
+**********************************
 Start Application
-############
+**********************************
 
 Character: 0x40
 Command Sets: 0.1
