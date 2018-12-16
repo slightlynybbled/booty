@@ -10,4 +10,4 @@ the microcontroller bootloader over a serial UART (commonly referred to as a "se
 The companion project to this is the `bootypic <http://github.com/slightlynybbled/bootypic>`_ project.
 Hopefully, more will follow.  GUI provided at `bootycontrol <http://github.com/slightlynybbled/bootycontrol>`_.
 
-Please see the documentation for further guidance!
+Please see the `documentation <https://booty.readthedocs.io/en/latest/index.html>`_ for further guidance!
