@@ -5,7 +5,7 @@ Protocol
 This document describes the communications protocol for the bootypic repository
 
 There are two primary layers that this document is concerned with, framing and command.
-The framing layer is primarily concerned with delimiting the beginning of a packet along
+The framing layer is primarily concerned with delimiting the packet boundaries along
 with ensuring data integrity of the packet using a fletcher16 checksum.  The command 
 layer is concerned with interpreting the payload of the frame so that the software layer 
 may respond accordingly.

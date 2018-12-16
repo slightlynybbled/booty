@@ -17,8 +17,10 @@ add a little booty to your project and make upgrading your firmware a breeze.
 
 .. toctree::
    :maxdepth: 2
+   :numbered:
 
    intro
+   big_ideas
    comm_protocol
 
 Indices and tables

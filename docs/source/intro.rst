@@ -33,6 +33,7 @@ implementation and is not an implementation itself.  Protocol features include:
 * device erasure
 * loading
 * verification
+* self protection
 * open source!
 
 *********************
@@ -42,5 +43,6 @@ The implementation(s)
 On the other hand, since ``booty`` is a protocol, then there are any number of
 possible implementations and workflows possible.  For instance, the author has
 implemented a server using Python (described by this documentation) along with
-a client implentation in C for the dsPIC series of microcontrollers.  The C
-implementation is small, simple, uses no interrupts, and has been tested.
+a `client implentation in C for the dsPIC series <https://github.com/slightlynybbled/bootypic>`_
+of microcontrollers.  The C implementation is small, simple, uses no interrupts,
+and has been successfully tested.
