@@ -10,11 +10,8 @@ exec(open(os.path.join(here, 'booty/version.py')).read())
 
 # ---------------------------------
 # project requirements
-requirements = [
-    'click >= 6.7',
-    'intelhex >= 2.1',
-    'pyserial >= 3.3'
-]
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 # ---------------------------------
 # project setup
