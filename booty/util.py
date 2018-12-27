@@ -101,27 +101,23 @@ def load_hex(boot_loader_app, hex_file_path):
     return True
 
 
-def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0x000000)):
+def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0x000000,)):
     okay_so_far = True
     logger.info('reading flash from device...')
 
     hp = HexParser(hex_file_path)
-    highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
 
-    # read entire program memory
-    for address in range(0, highest_prog_address, boot_loader_app.max_prog_size):
-        logger.debug('reading address {:06X}'.format(address))
-        boot_loader_app.read_page(address)
-
-    # wait for transmissions to complete
-    while boot_loader_app.busy:
-        time.sleep(0.2)
-        logger.info('flash read operations remaining: {}'.format(boot_loader_app.transactions_remaining))
+    logger.info('reading device memory....')
+    for segment in hp.segments:
+        for addr in range(segment.start, segment.end, boot_loader_app.max_prog_size):
+            logger.debug('reading address {:06X}'.format(addr))
+            boot_loader_app.read_page(addr)
 
     logger.info('verifying....')
     for segment in hp.segments:
-        logger.info('verifying segment {}').format(segment)
-        for addr in segment:
+        logger.info('verifying segment {}'.format(segment))
+
+        for addr in range(segment.start, segment.end, 2):
             if addr in whitelist_addresses:
                 logger.debug('address {:06X} is whitelisted, skipping verification.'.format(addr))
                 continue

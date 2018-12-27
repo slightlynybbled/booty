@@ -6,17 +6,8 @@ class AddressSegment:
         self.start = start
         self.end = end
 
-    def to_range(self):
-        return range(self.start, self.end, 2)
-
-    def __iter__(self):
-        return iter(self.to_range())
-
     def __str__(self):
         return '[{:06X} : {:06x}]'.format(self.start, self.end)
-
-    def __contains__(self, item):
-        return item in self.to_range()
 
 
 class HexParser:
@@ -41,6 +32,7 @@ class HexParser:
         value += self.memory_map[addr + 3] << 24
 
         return value
+
 
 if __name__ == '__main__':
     hp = HexParser('C:/_code/libs/blink.X/dist/default/production/blink.X.production.hex')
