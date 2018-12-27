@@ -109,6 +109,8 @@ def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0
     logger.info('reading flash from device...')
     for segment in hp.segments:
         for addr in range(segment.start, segment.end, boot_loader_app.max_prog_size):
+            if addr >= boot_loader_app.prog_length:
+                continue
             logger.debug('reading address {:06X}'.format(addr))
             boot_loader_app.read_page(addr)
 
@@ -119,6 +121,9 @@ def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0
         for addr in range(segment.start, segment.end, 2):
             if addr in whitelist_addresses:
                 logger.debug('address {:06X} is whitelisted, skipping verification.'.format(addr))
+                continue
+            elif addr >= boot_loader_app.prog_length:
+                logger.debug('address {:06X} is beyond the programming upper bound, skipping verification'.format(addr))
                 continue
 
             m = None
