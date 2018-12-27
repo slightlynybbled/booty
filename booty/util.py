@@ -103,11 +103,10 @@ def load_hex(boot_loader_app, hex_file_path):
 
 def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0x000000,)):
     okay_so_far = True
-    logger.info('reading flash from device...')
 
     hp = HexParser(hex_file_path)
 
-    logger.info('reading device memory....')
+    logger.info('reading flash from device...')
     for segment in hp.segments:
         for addr in range(segment.start, segment.end, boot_loader_app.max_prog_size):
             logger.debug('reading address {:06X}'.format(addr))
