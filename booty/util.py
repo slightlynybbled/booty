@@ -101,21 +101,17 @@ def load_hex(boot_loader_app, hex_file_path):
     return True
 
 
-def verify_hex(boot_loader_app, hex_file_path):
+def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0x000000)):
     okay_so_far = True
     logger.info('reading flash from device...')
 
     hp = HexParser(hex_file_path)
-
     highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
 
     # read entire program memory
-    address = 0
-    while address < highest_prog_address:
+    for address in range(0, highest_prog_address, boot_loader_app.max_prog_size):
         logger.debug('reading address {:06X}'.format(address))
         boot_loader_app.read_page(address)
-
-        address += boot_loader_app.max_prog_size
 
     # wait for transmissions to complete
     while boot_loader_app.busy:
@@ -123,10 +119,25 @@ def verify_hex(boot_loader_app, hex_file_path):
         logger.info('flash read operations remaining: {}'.format(boot_loader_app.transactions_remaining))
 
     logger.info('verifying....')
-    for start, end in hp.memory_map.segments():
-        logger.info('verifying segment {:06X}:{:06x}').format(start, end)
-        for addr in range(start / 2, end / 2, 2):
-            m = boot_loader_app.get_opcode(addr) & 0xffffff
+    for segment in hp.segments:
+        logger.info('verifying segment {}').format(segment)
+        for addr in segment:
+            if addr in whitelist_addresses:
+                logger.debug('address {:06X} is whitelisted, skipping verification.'.format(addr))
+                continue
+
+            m = None
+            for retry in range(retries):
+                m = boot_loader_app.get_opcode(addr)
+                if m is not None:
+                    break
+                logger.debug('address {:06X} not yet loaded'.format(addr))
+                time.sleep(0.2)
+            if m is None:
+                logger.error('aborting verification. Could not read address {:06X}.'.format(addr))
+                return False
+
+            m = m & 0xffffff
             h = hp.get_opcode(addr) & 0xffffff
             if m != h:
                 logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(addr, m, h))

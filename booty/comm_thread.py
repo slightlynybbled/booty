@@ -147,7 +147,7 @@ class BootLoaderThread:
             self.prog_length = msg[1] + (msg[2] << 8) + (msg[3] << 16) + (msg[4] << 24)
             logger.info('program length set: {}'.format(self.prog_length))
 
-            self.local_memory_map = [0xffffff] * (0x200 * self.prog_length >> 1)
+            self.local_memory_map = [None] * (0x200 * self.prog_length >> 1)
 
         elif command == READ_MAX_PROG_SIZE:
             self.max_prog_size = msg[1] + (msg[2] << 8)

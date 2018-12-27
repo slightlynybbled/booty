@@ -1,9 +1,33 @@
 import intelhex
 
 
+class AddressSegment:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
+
+    def to_range(self):
+        return range(self.start, self.end, 2)
+
+    def __iter__(self):
+        return iter(self.to_range())
+
+    def __str__(self):
+        return '[{:06X} : {:06x}]'.format(self.start, self.end)
+
+    def __contains__(self, item):
+        return item in self.to_range()
+
+
 class HexParser:
     def __init__(self, filename):
         self.memory_map = intelhex.IntelHex(filename)
+
+    @property
+    def segments(self):
+        # have to divide by 2, since IntelHex uses byte addresses
+        # and we use addresses of int16's
+        return [AddressSegment(start // 2, end // 2) for start, end in self.memory_map.segments()]
 
     def get_opcode(self, address):
         if address % 2 != 0:
