@@ -32,7 +32,7 @@ def identify_device(boot_loader_app, timeout=5.0):
         if (time.time() - start_time) > timeout:
             boot_loader_app.end_thread()
             logger.error('device not responding, check connection and reset device')
-            time.sleep(0.1)     # time to end the thread
+            time.sleep(0.1)  # time to end the thread
             return False
 
     return True
@@ -102,6 +102,7 @@ def load_hex(boot_loader_app, hex_file_path):
 
 
 def verify_hex(boot_loader_app, hex_file_path):
+    okay_so_far = True
     logger.info('reading flash from device...')
 
     hp = HexParser(hex_file_path)
@@ -121,32 +122,18 @@ def verify_hex(boot_loader_app, hex_file_path):
         time.sleep(0.2)
         logger.info('flash read operations remaining: {}'.format(boot_loader_app.transactions_remaining))
 
-    # verify first page of memory (interrupts, etc)
-    address = 1
-    addresses = [a for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-    memory = [boot_loader_app.get_opcode(a) & 0xffffff for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-    hex_file = [hp.get_opcode(a) & 0xffffff for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-
-    # check each location in application memory
-    for a, m, h in zip(addresses, memory, hex_file):
-        if m != h:
-            logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(a, m, h))
-            return False
-
-    # verify the application range
-    addresses = [a for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-    memory = [boot_loader_app.get_opcode(a) & 0xffffff for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-    hex_file = [hp.get_opcode(a) & 0xffffff for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-
-    # check each location in application memory
     logger.info('verifying....')
-    for a, m, h in zip(addresses, memory, hex_file):
-        if m != h:
-            logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(a, m, h))
-            return False
+    for start, end in hp.memory_map.segments():
+        logger.info('verifying segment {:06X}:{:06x}').format(start, end)
+        for addr in range(start / 2, end / 2, 2):
+            m = boot_loader_app.get_opcode(addr) & 0xffffff
+            h = hp.get_opcode(addr) & 0xffffff
+            if m != h:
+                logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(addr, m, h))
+                okay_so_far = False
 
     logger.info('verification complete!')
-    return True
+    return okay_so_far
 
 
 if __name__ == '__main__':
@@ -161,4 +148,4 @@ if __name__ == '__main__':
     verify_hex(blt, hex_path)
 
     blt.end_thread()
-    time.sleep(1.0)     # time for thread to end itself
+    time.sleep(1.0)  # time for thread to end itself
