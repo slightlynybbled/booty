@@ -7,7 +7,7 @@ class AddressSegment:
         self.end = end
 
     def __str__(self):
-        return '[{:06X} : {:06x}]'.format(self.start, self.end)
+        return '[{:06X} : {:06X}]'.format(self.start, self.end)
 
 
 class HexParser:
