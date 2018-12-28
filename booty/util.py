@@ -32,7 +32,7 @@ def identify_device(boot_loader_app, timeout=5.0):
         if (time.time() - start_time) > timeout:
             boot_loader_app.end_thread()
             logger.error('device not responding, check connection and reset device')
-            time.sleep(0.1)     # time to end the thread
+            time.sleep(0.1)  # time to end the thread
             return False
 
     return True
@@ -101,52 +101,50 @@ def load_hex(boot_loader_app, hex_file_path):
     return True
 
 
-def verify_hex(boot_loader_app, hex_file_path):
-    logger.info('reading flash from device...')
+def verify_hex(boot_loader_app, hex_file_path, retries=3, whitelist_addresses=(0x000000,)):
+    okay_so_far = True
 
     hp = HexParser(hex_file_path)
 
-    highest_prog_address = boot_loader_app.prog_length - boot_loader_app.page_length
+    logger.info('reading flash from device...')
+    for segment in hp.segments:
+        for addr in range(segment.start, segment.end, boot_loader_app.max_prog_size):
+            if addr >= boot_loader_app.prog_length:
+                continue
+            logger.debug('reading address {:06X}'.format(addr))
+            boot_loader_app.read_page(addr)
 
-    # read entire program memory
-    address = 0
-    while address < highest_prog_address:
-        logger.debug('reading address {:06X}'.format(address))
-        boot_loader_app.read_page(address)
-
-        address += boot_loader_app.max_prog_size
-
-    # wait for transmissions to complete
-    while boot_loader_app.busy:
-        time.sleep(0.2)
-        logger.info('flash read operations remaining: {}'.format(boot_loader_app.transactions_remaining))
-
-    # verify first page of memory (interrupts, etc)
-    address = 1
-    addresses = [a for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-    memory = [boot_loader_app.get_opcode(a) & 0xffffff for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-    hex_file = [hp.get_opcode(a) & 0xffffff for a in range(address, boot_loader_app.page_length << 1) if (a % 2) == 0]
-
-    # check each location in application memory
-    for a, m, h in zip(addresses, memory, hex_file):
-        if m != h:
-            logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(a, m, h))
-            return False
-
-    # verify the application range
-    addresses = [a for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-    memory = [boot_loader_app.get_opcode(a) & 0xffffff for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-    hex_file = [hp.get_opcode(a) & 0xffffff for a in range(boot_loader_app.app_start_addr, highest_prog_address) if (a % 2) == 0]
-
-    # check each location in application memory
     logger.info('verifying....')
-    for a, m, h in zip(addresses, memory, hex_file):
-        if m != h:
-            logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(a, m, h))
-            return False
+    for segment in hp.segments:
+        logger.info('verifying segment {}'.format(segment))
+
+        for addr in range(segment.start, segment.end, 2):
+            if addr in whitelist_addresses:
+                logger.debug('address {:06X} is whitelisted, skipping verification.'.format(addr))
+                continue
+            elif addr >= boot_loader_app.prog_length:
+                logger.debug('address {:06X} is beyond the programming upper bound, skipping verification'.format(addr))
+                continue
+
+            m = None
+            for retry in range(retries):
+                m = boot_loader_app.get_opcode(addr)
+                if m is not None:
+                    break
+                logger.debug('address {:06X} not yet loaded'.format(addr))
+                time.sleep(0.2)
+            if m is None:
+                logger.error('aborting verification. Could not read address {:06X}.'.format(addr))
+                return False
+
+            m = m & 0xffffff
+            h = hp.get_opcode(addr) & 0xffffff
+            if m != h:
+                logger.error('address {:06X}: device value "{:06X}" does not match hex value "{:06X}"'.format(addr, m, h))
+                okay_so_far = False
 
     logger.info('verification complete!')
-    return True
+    return okay_so_far
 
 
 if __name__ == '__main__':
@@ -161,4 +159,4 @@ if __name__ == '__main__':
     verify_hex(blt, hex_path)
 
     blt.end_thread()
-    time.sleep(1.0)     # time for thread to end itself
+    time.sleep(1.0)  # time for thread to end itself
